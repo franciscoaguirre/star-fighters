@@ -33,3 +33,7 @@ pub fn get_movement(control: GameControl, input: &Res<Input<KeyCode>>) -> f32 {
         0.0
     }
 }
+
+pub fn get_control(control: GameControl, input: &Res<Input<KeyCode>>) -> bool {
+    control.pressed(input)
+}

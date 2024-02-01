@@ -1,5 +1,6 @@
 use crate::actions::Actions;
 use crate::loading::TextureAssets;
+use crate::velocity::Velocity;
 use crate::GameState;
 use bevy::prelude::*;
 
@@ -18,30 +19,33 @@ impl Plugin for PlayerPlugin {
 }
 
 fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
-    commands
-        .spawn(SpriteBundle {
+    commands.spawn((
+        SpriteBundle {
             texture: textures.bevy.clone(),
-            transform: Transform::from_translation(Vec3::new(0., 0., 1.)),
+            transform: Transform::from_translation(Vec3::new(0., 0., 0.))
+                .with_scale(Vec3::new(0.2, 0.2, 0.2)),
             ..Default::default()
-        })
-        .insert(Player);
+        },
+        Player,
+        Velocity::default(),
+    ));
 }
 
 fn move_player(
     time: Res<Time>,
     actions: Res<Actions>,
-    mut player_query: Query<&mut Transform, With<Player>>,
+    mut player_query: Query<(&mut Transform, &mut Velocity), With<Player>>,
 ) {
-    if actions.player_movement.is_none() {
-        return;
-    }
-    let speed = 150.;
-    let movement = Vec3::new(
-        actions.player_movement.unwrap().x * speed * time.delta_seconds(),
-        actions.player_movement.unwrap().y * speed * time.delta_seconds(),
-        0.,
-    );
-    for mut player_transform in &mut player_query {
-        player_transform.translation += movement;
+    let rotation_speed = 2.0;
+    let translation_speed = 150.;
+    // Seems confusing but "forward" is "up" in the 2D world
+    let player_forward = &player_query.single().0.up();
+    for (mut transform, mut velocity) in &mut player_query {
+        if let Some(rotation) = actions.player_rotation {
+            transform.rotate_z(rotation * rotation_speed * time.delta_seconds());
+        }
+        if actions.player_thrust {
+            velocity.0 = *player_forward * translation_speed;
+        }
     }
 }

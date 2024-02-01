@@ -2,15 +2,19 @@
 
 mod actions;
 mod audio;
+mod boundaries;
 mod loading;
 mod menu;
 mod player;
+mod velocity;
 
-use crate::actions::ActionsPlugin;
-use crate::audio::InternalAudioPlugin;
-use crate::loading::LoadingPlugin;
-use crate::menu::MenuPlugin;
-use crate::player::PlayerPlugin;
+use actions::ActionsPlugin;
+use audio::InternalAudioPlugin;
+use boundaries::BoundariesPlugin;
+use loading::LoadingPlugin;
+use menu::MenuPlugin;
+use player::PlayerPlugin;
+use velocity::VelocityPlugin;
 
 use bevy::app::App;
 #[cfg(debug_assertions)]
@@ -41,6 +45,8 @@ impl Plugin for GamePlugin {
             ActionsPlugin,
             InternalAudioPlugin,
             PlayerPlugin,
+            VelocityPlugin,
+            BoundariesPlugin,
         ));
 
         #[cfg(debug_assertions)]
