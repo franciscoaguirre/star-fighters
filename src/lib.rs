@@ -5,16 +5,16 @@ mod audio;
 mod boundaries;
 mod loading;
 mod menu;
+mod physics;
 mod player;
-mod velocity;
 
 use actions::ActionsPlugin;
 use audio::InternalAudioPlugin;
 use boundaries::BoundariesPlugin;
 use loading::LoadingPlugin;
 use menu::MenuPlugin;
+use physics::PhysicsPlugin;
 use player::PlayerPlugin;
-use velocity::VelocityPlugin;
 
 use bevy::app::App;
 #[cfg(debug_assertions)]
@@ -45,7 +45,7 @@ impl Plugin for GamePlugin {
             ActionsPlugin,
             InternalAudioPlugin,
             PlayerPlugin,
-            VelocityPlugin,
+            PhysicsPlugin,
             BoundariesPlugin,
         ));
 
