@@ -1,8 +1,9 @@
 use crate::actions::Actions;
 use crate::loading::TextureAssets;
-use crate::physics::{Acceleration, Mass, Velocity};
+use crate::physics::{Acceleration, Forces, Mass, Velocity};
 use crate::GameState;
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 
 pub struct PlayerPlugin;
 
@@ -30,22 +31,27 @@ fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
         Acceleration::default(),
         Velocity::default(),
         Mass(1.0), // 1 kilogram
+        Forces(HashMap::new()),
     ));
 }
 
+/// Rotates the player and thrusts.
+/// The thrust creates a force, which is then used to calculate the
+/// net force in the `PhysicsPlugin`.
 fn move_player(
     time: Res<Time>,
     actions: Res<Actions>,
-    mut player_query: Query<(&mut Transform, &mut Acceleration, &Mass), With<Player>>,
+    mut player_query: Query<(&mut Transform, &mut Forces), With<Player>>,
 ) {
     let rotation_speed = 2.0;
-    let thrust_force = if actions.player_thrust { 200. } else { 0. }; // Newtons
+    let thrust_force = if actions.player_thrust { 100. } else { 0. }; // Newtons
     let player_forward = &player_query.single().0.up(); // Seems confusing but "forward" is "up" in the 2D world
-    for (mut transform, mut acceleration, mass) in &mut player_query {
+    for (mut transform, mut forces) in &mut player_query {
         if let Some(rotation) = actions.player_rotation {
             transform.rotate_z(rotation * rotation_speed * time.delta_seconds());
         }
-        // F = m * a -> a = F / m
-        acceleration.0 = *player_forward * thrust_force / mass.0;
+        forces
+            .0
+            .insert("thrust".to_string(), *player_forward * thrust_force);
     }
 }

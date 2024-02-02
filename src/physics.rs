@@ -1,7 +1,12 @@
+use bevy::log;
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 
 use crate::loading::TextureAssets;
 use crate::GameState;
+
+#[derive(Component, Debug)]
+pub struct Forces(pub HashMap<String, Vec3>);
 
 #[derive(Component, Default)]
 pub struct Acceleration(pub Vec3);
@@ -22,7 +27,12 @@ impl Plugin for PhysicsPlugin {
         app.add_systems(OnEnter(GameState::Playing), spawn_star)
             .add_systems(
                 Update,
-                (apply_acceleration, apply_velocity, apply_gravity)
+                (
+                    apply_gravity,
+                    apply_forces,
+                    apply_acceleration,
+                    apply_velocity,
+                )
                     .run_if(in_state(GameState::Playing)),
             );
     }
@@ -36,36 +46,51 @@ fn spawn_star(mut commands: Commands, textures: Res<TextureAssets>) {
                 .with_scale(Vec3::new(0.5, 0.5, 0.5)),
             ..default()
         },
-        Mass(1000.),
+        Mass(10_000.),
         Star,
     ));
 }
 
+/// Sum all forces being applied to entities, in order to get the net force.
+/// Then, modify the acceleration according to Newton's 2nd law.
+fn apply_forces(mut query: Query<(&Forces, &Mass, &mut Acceleration)>) {
+    for (forces, mass, mut acceleration) in query.iter_mut() {
+        // F = m * a -> a = F / m
+        acceleration.0 = forces.0.values().sum::<Vec3>() / mass.0;
+    }
+}
+
+/// Change entities' velocity according to their acceleration.
 fn apply_acceleration(mut query: Query<(&Acceleration, &mut Velocity)>, time: Res<Time>) {
     for (acceleration, mut velocity) in query.iter_mut() {
         velocity.0 += acceleration.0 * time.delta_seconds();
     }
 }
 
+/// Change entities' positions according to their velocity.
 fn apply_velocity(mut query: Query<(&Velocity, &mut Transform)>, time: Res<Time>) {
     for (velocity, mut transform) in query.iter_mut() {
         transform.translation += velocity.0 * time.delta_seconds();
     }
 }
 
+/// Apply a gravitational force from entities with the `Star` component
+/// to those that don't have it.
 fn apply_gravity(
-    mut objects_query: Query<(&Mass, &Transform, &mut Acceleration), Without<Star>>,
+    mut objects_query: Query<(&Transform, &mut Forces), Without<Star>>,
     stars_query: Query<(&Mass, &Transform), With<Star>>,
 ) {
-    for (mass, transform, mut acceleration) in objects_query.iter_mut() {
+    for (transform, mut forces) in objects_query.iter_mut() {
         for (star_mass, star_transform) in stars_query.iter() {
             // F = G * m1 * m2 / r^2
             // G is too small to account for. m2 as well.
             let direction_to_star = star_transform.translation - transform.translation;
             let distance_to_star = direction_to_star.length();
             let gravitational_force = star_mass.0 / distance_to_star.powi(2);
-            // F = m * a -> a = F / m
-            acceleration.0 = direction_to_star * gravitational_force / mass.0;
+            forces.0.insert(
+                "gravity".to_string(),
+                direction_to_star * gravitational_force,
+            );
         }
     }
 }
