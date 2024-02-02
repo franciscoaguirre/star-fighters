@@ -26,6 +26,7 @@ impl Plugin for ActionsPlugin {
 pub struct Actions {
     pub player_rotation: Option<f32>,
     pub player_thrust: bool,
+    pub fire: bool,
 }
 
 pub fn set_movement_actions(
@@ -56,4 +57,5 @@ pub fn set_movement_actions(
     }
 
     actions.player_thrust = get_control(GameControl::Up, &keyboard_input);
+    actions.fire = get_control(GameControl::Fire, &keyboard_input);
 }

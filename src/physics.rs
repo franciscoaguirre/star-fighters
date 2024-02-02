@@ -3,10 +3,14 @@ use bevy::sprite::collide_aabb::collide;
 use bevy::utils::HashMap;
 
 use crate::loading::TextureAssets;
-use crate::player::Player;
 use crate::GameState;
 
-#[derive(Component, Debug)]
+#[derive(Component)]
+pub struct Collider {
+    pub dimensions: Vec2,
+}
+
+#[derive(Component, Debug, Default)]
 pub struct Forces(pub HashMap<String, Vec3>);
 
 #[derive(Component, Default)]
@@ -99,19 +103,19 @@ fn apply_gravity(
 
 fn check_for_collisions(
     mut commands: Commands,
-    player_query: Query<(Entity, &Transform), With<Player>>,
-    star_query: Query<&Transform, With<Star>>,
+    colliders_query: Query<(Entity, &Transform, &Collider)>,
+    stars_query: Query<&Transform, With<Star>>,
 ) {
-    for (player_entity, player_transform) in player_query.iter() {
-        for star_transform in star_query.iter() {
+    for (entity, transform, collider) in colliders_query.iter() {
+        for star_transform in stars_query.iter() {
             let collision = collide(
-                player_transform.translation,
-                Vec2::new(51.2, 51.2),
+                transform.translation,
+                collider.dimensions,
                 star_transform.translation,
                 Vec2::new(96., 96.), // 128 is half the image used because of scale. We also give some 32px of extra space.
             );
             if collision.is_some() {
-                commands.entity(player_entity).despawn_recursive();
+                commands.entity(entity).despawn_recursive();
             }
         }
     }
