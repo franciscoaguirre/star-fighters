@@ -1,8 +1,9 @@
-use bevy::log;
 use bevy::prelude::*;
+use bevy::sprite::collide_aabb::collide;
 use bevy::utils::HashMap;
 
 use crate::loading::TextureAssets;
+use crate::player::Player;
 use crate::GameState;
 
 #[derive(Component, Debug)]
@@ -32,6 +33,7 @@ impl Plugin for PhysicsPlugin {
                     apply_forces,
                     apply_acceleration,
                     apply_velocity,
+                    check_for_collisions,
                 )
                     .run_if(in_state(GameState::Playing)),
             );
@@ -91,6 +93,26 @@ fn apply_gravity(
                 "gravity".to_string(),
                 direction_to_star * gravitational_force,
             );
+        }
+    }
+}
+
+fn check_for_collisions(
+    mut commands: Commands,
+    player_query: Query<(Entity, &Transform), With<Player>>,
+    star_query: Query<&Transform, With<Star>>,
+) {
+    for (player_entity, player_transform) in player_query.iter() {
+        for star_transform in star_query.iter() {
+            let collision = collide(
+                player_transform.translation,
+                Vec2::new(51.2, 51.2),
+                star_transform.translation,
+                Vec2::new(96., 96.), // 128 is half the image used because of scale. We also give some 32px of extra space.
+            );
+            if collision.is_some() {
+                commands.entity(player_entity).despawn_recursive();
+            }
         }
     }
 }

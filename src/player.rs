@@ -45,13 +45,15 @@ fn move_player(
 ) {
     let rotation_speed = 2.0;
     let thrust_force = if actions.player_thrust { 100. } else { 0. }; // Newtons
-    let player_forward = &player_query.single().0.up(); // Seems confusing but "forward" is "up" in the 2D world
-    for (mut transform, mut forces) in &mut player_query {
-        if let Some(rotation) = actions.player_rotation {
-            transform.rotate_z(rotation * rotation_speed * time.delta_seconds());
+    if let Ok(player) = player_query.get_single() {
+        let player_forward = &player.0.up(); // Seems confusing but "forward" is "up" in the 2D world
+        for (mut transform, mut forces) in &mut player_query {
+            if let Some(rotation) = actions.player_rotation {
+                transform.rotate_z(rotation * rotation_speed * time.delta_seconds());
+            }
+            forces
+                .0
+                .insert("thrust".to_string(), *player_forward * thrust_force);
         }
-        forces
-            .0
-            .insert("thrust".to_string(), *player_forward * thrust_force);
     }
 }
