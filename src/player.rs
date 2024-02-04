@@ -4,7 +4,6 @@ use crate::physics::{Acceleration, Collider, Forces, Mass, Velocity};
 use crate::GameState;
 use bevy::prelude::*;
 use bevy::sprite::MaterialMesh2dBundle;
-use bevy::utils::HashMap;
 
 pub struct PlayerPlugin;
 
@@ -49,6 +48,7 @@ fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
         },
         Collider {
             dimensions: Vec2::new(51.2, 51.2),
+            should_destroy: true,
         },
     ));
 }
@@ -62,7 +62,7 @@ fn move_player(
     mut player_query: Query<(&mut Transform, &mut Forces), With<Player>>,
 ) {
     let rotation_speed = 2.0;
-    let thrust_force = if actions.player_thrust { 100. } else { 0. }; // Newtons
+    let thrust_force = if actions.player_thrust { 200. } else { 0. }; // Newtons
     if let Ok(player) = player_query.get_single() {
         let player_forward = &player.0.up(); // Seems confusing but "forward" is "up" in the 2D world
         for (mut transform, mut forces) in &mut player_query {
@@ -88,7 +88,7 @@ fn shoot(
         if gun.cooldown_timer.tick(time.delta()).finished() {
             if actions.fire {
                 commands.spawn(create_projectile(
-                    transform.translation.clone() + transform.up() * 30.,
+                    transform.translation.clone() + transform.up() * 50.,
                     &transform.up(),
                     &mut meshes,
                     &mut materials,
@@ -128,6 +128,7 @@ fn create_projectile(
         Mass(0.1), // 100 grams
         Collider {
             dimensions: Vec2::new(5., 5.),
+            should_destroy: true,
         },
     )
 }

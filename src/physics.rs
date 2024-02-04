@@ -8,6 +8,7 @@ use crate::GameState;
 #[derive(Component)]
 pub struct Collider {
     pub dimensions: Vec2,
+    pub should_destroy: bool,
 }
 
 #[derive(Component, Debug, Default)]
@@ -53,6 +54,11 @@ fn spawn_star(mut commands: Commands, textures: Res<TextureAssets>) {
             ..default()
         },
         Mass(10_000.),
+        Collider {
+            // 128 is half the image used because of scale. We also give some 32px of extra space.
+            dimensions: Vec2::new(96., 96.),
+            should_destroy: false, // Should never destroy a star
+        },
         Star,
     ));
 }
@@ -101,21 +107,24 @@ fn apply_gravity(
     }
 }
 
-fn check_for_collisions(
-    mut commands: Commands,
-    colliders_query: Query<(Entity, &Transform, &Collider)>,
-    stars_query: Query<&Transform, With<Star>>,
-) {
-    for (entity, transform, collider) in colliders_query.iter() {
-        for star_transform in stars_query.iter() {
-            let collision = collide(
-                transform.translation,
-                collider.dimensions,
-                star_transform.translation,
-                Vec2::new(96., 96.), // 128 is half the image used because of scale. We also give some 32px of extra space.
-            );
-            if collision.is_some() {
-                commands.entity(entity).despawn_recursive();
+fn check_for_collisions(mut commands: Commands, query: Query<(Entity, &Transform, &Collider)>) {
+    let mut iter = query.iter_combinations();
+
+    while let Some([(entity1, transform1, collider1), (entity2, transform2, collider2)]) =
+        iter.fetch_next()
+    {
+        let collision = collide(
+            transform1.translation,
+            collider1.dimensions,
+            transform2.translation,
+            collider2.dimensions,
+        );
+        if collision.is_some() {
+            if collider1.should_destroy {
+                commands.entity(entity1).despawn();
+            }
+            if collider2.should_destroy {
+                commands.entity(entity2).despawn();
             }
         }
     }
