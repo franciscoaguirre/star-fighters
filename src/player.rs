@@ -58,7 +58,7 @@ fn create_player(
             number: player_number,
         },
         Gun {
-            cooldown_timer: Timer::from_seconds(0.25, TimerMode::Once),
+            cooldown_timer: Timer::from_seconds(0.5, TimerMode::Once),
         },
         PhysicsBundle::default(),
         Collider {
