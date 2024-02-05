@@ -8,7 +8,15 @@ use crate::GameState;
 #[derive(Component)]
 pub struct Collider {
     pub dimensions: Vec2,
-    pub should_destroy: bool,
+    pub destroyable: bool,
+}
+
+#[derive(Bundle, Default)]
+pub struct PhysicsBundle {
+    pub forces: Forces,
+    pub acceleration: Acceleration,
+    pub velocity: Velocity,
+    pub mass: Mass,
 }
 
 #[derive(Component, Debug, Default)]
@@ -22,6 +30,12 @@ pub struct Velocity(pub Vec3);
 
 #[derive(Component)]
 pub struct Mass(pub f32);
+
+impl Default for Mass {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
 
 // Objects so massive that they attract other objects with their gravity.
 #[derive(Component)]
@@ -57,7 +71,7 @@ fn spawn_star(mut commands: Commands, textures: Res<TextureAssets>) {
         Collider {
             // 128 is half the image used because of scale. We also give some 32px of extra space.
             dimensions: Vec2::new(96., 96.),
-            should_destroy: false, // Should never destroy a star
+            destroyable: false, // Should never destroy a star
         },
         Star,
     ));
@@ -120,10 +134,10 @@ fn check_for_collisions(mut commands: Commands, query: Query<(Entity, &Transform
             collider2.dimensions,
         );
         if collision.is_some() {
-            if collider1.should_destroy {
+            if collider1.destroyable {
                 commands.entity(entity1).despawn();
             }
-            if collider2.should_destroy {
+            if collider2.destroyable {
                 commands.entity(entity2).despawn();
             }
         }

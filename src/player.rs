@@ -1,6 +1,6 @@
 use crate::actions::Actions;
 use crate::loading::TextureAssets;
-use crate::physics::{Acceleration, Collider, Forces, Mass, Velocity};
+use crate::physics::{Collider, Forces, Mass, PhysicsBundle, Velocity};
 use crate::GameState;
 use bevy::prelude::*;
 use bevy::sprite::MaterialMesh2dBundle;
@@ -8,7 +8,9 @@ use bevy::sprite::MaterialMesh2dBundle;
 pub struct PlayerPlugin;
 
 #[derive(Component)]
-pub struct Player;
+pub struct Player {
+    number: u8,
+}
 
 #[derive(Component)]
 pub struct Gun {
@@ -22,35 +24,48 @@ pub struct Projectile;
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), spawn_player)
-            .add_systems(
-                Update,
-                (move_player, shoot).run_if(in_state(GameState::Playing)),
-            );
+        app.add_systems(
+            OnEnter(GameState::Playing),
+            (spawn_player_1, spawn_player_2),
+        )
+        .add_systems(
+            Update,
+            (move_player, shoot).run_if(in_state(GameState::Playing)),
+        );
     }
 }
 
-fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
-    commands.spawn((
+fn spawn_player_1(mut commands: Commands, textures: Res<TextureAssets>) {
+    commands.spawn(create_player(&textures, Vec3::new(-600., 0., 0.), 1));
+}
+
+fn spawn_player_2(mut commands: Commands, textures: Res<TextureAssets>) {
+    commands.spawn(create_player(&textures, Vec3::new(600., 0., 0.), 2));
+}
+
+fn create_player(
+    textures: &Res<TextureAssets>,
+    position: Vec3,
+    player_number: u8,
+) -> (SpriteBundle, Player, Gun, PhysicsBundle, Collider) {
+    (
         SpriteBundle {
             texture: textures.bevy.clone(),
-            transform: Transform::from_translation(Vec3::new(600., 0., 0.))
-                .with_scale(Vec3::new(0.2, 0.2, 0.2)),
+            transform: Transform::from_translation(position).with_scale(Vec3::new(0.2, 0.2, 0.2)),
             ..Default::default()
         },
-        Player,
-        Acceleration::default(),
-        Velocity::default(),
-        Mass(1.0), // 1 kilogram
-        Forces::default(),
+        Player {
+            number: player_number,
+        },
         Gun {
             cooldown_timer: Timer::from_seconds(0.25, TimerMode::Once),
         },
+        PhysicsBundle::default(),
         Collider {
             dimensions: Vec2::new(51.2, 51.2),
-            should_destroy: true,
+            destroyable: true,
         },
-    ));
+    )
 }
 
 /// Rotates the player and thrusts.
@@ -59,20 +74,19 @@ fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
 fn move_player(
     time: Res<Time>,
     actions: Res<Actions>,
-    mut player_query: Query<(&mut Transform, &mut Forces), With<Player>>,
+    mut player_query: Query<(&mut Transform, &mut Forces, &Player)>,
 ) {
     let rotation_speed = 2.0;
-    let thrust_force = if actions.player_thrust { 200. } else { 0. }; // Newtons
-    if let Ok(player) = player_query.get_single() {
-        let player_forward = &player.0.up(); // Seems confusing but "forward" is "up" in the 2D world
-        for (mut transform, mut forces) in &mut player_query {
-            if let Some(rotation) = actions.player_rotation {
-                transform.rotate_z(rotation * rotation_speed * time.delta_seconds());
-            }
-            forces
-                .0
-                .insert("thrust".to_string(), *player_forward * thrust_force);
+    for (mut transform, mut forces, player) in &mut player_query {
+        let player_actions = &actions.player_actions[(player.number - 1) as usize];
+        let thrust_force = if player_actions.thrust { 200. } else { 0. }; // Newtons
+        let player_forward = transform.up().clone(); // Seems confusing but "forward" is "up" in the 2D world
+        if let Some(rotation) = player_actions.rotation {
+            transform.rotate_z(rotation * rotation_speed * time.delta_seconds());
         }
+        forces
+            .0
+            .insert("thrust".to_string(), player_forward * thrust_force);
     }
 }
 
@@ -80,13 +94,14 @@ fn shoot(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    mut query: Query<(&Transform, &mut Gun), With<Player>>,
+    mut query: Query<(&Transform, &mut Gun, &Player)>,
     actions: Res<Actions>,
     time: Res<Time>,
 ) {
-    for (transform, mut gun) in query.iter_mut() {
+    for (transform, mut gun, player) in query.iter_mut() {
         if gun.cooldown_timer.tick(time.delta()).finished() {
-            if actions.fire {
+            let player_actions = &actions.player_actions[(player.number - 1) as usize];
+            if player_actions.fire {
                 commands.spawn(create_projectile(
                     transform.translation.clone() + transform.up() * 50.,
                     &transform.up(),
@@ -107,10 +122,7 @@ fn create_projectile(
 ) -> (
     MaterialMesh2dBundle<ColorMaterial>,
     Projectile,
-    Forces,
-    Acceleration,
-    Velocity,
-    Mass,
+    PhysicsBundle,
     Collider,
 ) {
     let initial_velocity = *up * 500.;
@@ -122,13 +134,14 @@ fn create_projectile(
             ..default()
         },
         Projectile,
-        Forces::default(),
-        Acceleration::default(),
-        Velocity(initial_velocity),
-        Mass(0.1), // 100 grams
+        PhysicsBundle {
+            mass: Mass(0.1), // 100 grams
+            velocity: Velocity(initial_velocity),
+            ..default()
+        },
         Collider {
             dimensions: Vec2::new(5., 5.),
-            should_destroy: true,
+            destroyable: true,
         },
     )
 }
